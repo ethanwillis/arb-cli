@@ -1,0 +1,20 @@
+{
+  "name": "arb-cli",
+  "version": "1.0.0",
+  "description": "Do arbitrage trades between exchanges from the command line",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "arbitrage",
+    "cryptocurrency",
+    "cli"
+  ],
+  "author": "Ethan Willis",
+  "license": "ISC",
+  "dependencies": {
+    "binance": "^1.1.0",
+    "fixed-size-queue": "^1.0.1"
+  }
+}
