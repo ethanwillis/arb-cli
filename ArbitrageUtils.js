@@ -1,35 +1,8 @@
 module.exports = class ArbitrageUtils {
 
-	/**
-		Takes as input 3 pair objects and calculates the gain trading from
-		the sell pair to the buy pair.
-
-		A pair object has the following structure
-		{
-			numerator
-			denominator
-			bid_price
-			bid_qty
-			ask_price
-			ask_qty
-		}
-	*/
-	static find_gain(sell, common, buy) {
-		// Make sure common pair is denominated in correct currency.
-		if(sell.denominator != common.denominator) {
-			common.bid_price = 1.0 /common.bid_price
-			common.ask_price = 1.0 /common.ask_price
-			common.numerator = common.denominator
-			common.denominator = sell.denominator
-		}
-
-		let gain = (1.0 * sell.bid_price) / common.ask_price / buy.ask_price
-	
+	static gain_percentage(sell_qty, buy_qty) {
+		let gain = Number(((buy_qty - sell_qty)/sell_qty)*100).toPrecision(4)
 		return gain
-	}
-
-	static gain_percentage(gain) {
-		return (gain - 1) * 100	
 	}
 
 	/**
@@ -82,54 +55,76 @@ module.exports = class ArbitrageUtils {
 
 		return limiting_pair;
 	}
+
+	static buy_sell_amounts(limiting_pair, sell, common, buy) {
+		let result = {
+			limiting_pair: limiting_pair,
+			sell: {
+				pair: sell.numerator + "/" + sell.denominator,
+				price: sell.bid_price,
+				qty: 0
+			},
+			common: {
+				pair: common.numerator + "/" + common.denominator,
+				price: common.ask_price,
+				qty: 0
+			},
+			buy: {
+				pair: buy.numerator + "/" + buy.denominator,
+				price: buy.ask_price,
+				qty: 0
+			}
+		}
+
+		if(limiting_pair == "sell") {
+			result.sell.qty = sell.bid_qty 
+			if(sell.denominator == common.denominator) {
+				result.common.qty = (result.sell.qty * result.sell.price) / result.common.price
+				result.buy.qty = result.common.qty / result.buy.price
+			} else if(buy.denominator == common.denominator) {
+				result.common.qty = (result.sell.qty * result.sell.price)
+				result.buy.qty = (result.common.qty * result.common.price) / result.buy.price
+			}
+
+		} else if(limiting_pair == "common") {
+			result.common.qty = common.ask_qty
+			if(sell.denominator == common.denominator) {
+				result.sell.qty = (result.common.qty * result.common.price) / result.sell.price
+				result.buy.qty = result.common.qty / result.buy.price
+			} else if(buy.denominator == common.denominator) {
+				result.buy.qty = (result.common.qty * result.common.price) / result.buy.price
+				result.sell.qty = result.common.qty / result.sell.price
+			}
+
+		} else if(limiting_pair == "buy") {
+			result.buy.qty = buy.ask_qty
+			if(sell.denominator == common.denominator) {
+				result.common.qty = (result.buy.qty * result.buy.price)
+				result.sell.qty = (result.common.qty * result.common.price) / result.sell.price
+			} else if(buy.denominator == common.denominator) {
+				result.common.qty = (result.buy.qty * result.buy.price) / result.common.price
+				result.sell.qty = result.common.qty / result.sell.price
+			}
+		}
+
+		result.sell.qty = Number(result.sell.qty).toFixed(sell.precision);
+		result.common.qty = Number(result.common.qty).toFixed(3);
+		result.buy.qty = Number(result.buy.qty).toFixed(buy.precision);
+
+		return result
+	}
+	
+	static opportunity(sell, common, buy) {
+		//let arb_gain = 1; //this.gain_percentage(sell, common, buy);
+		let limiting_pair = this.find_limiting_pair(sell, common, buy);
+	        let pair_trades = this.buy_sell_amounts(limiting_pair, sell, common, buy);
+		let arb_gain = this.gain_percentage(pair_trades.sell.qty, pair_trades.buy.qty)
+		return {
+			gain: arb_gain,
+			limiting_pair: limiting_pair,
+			sell: pair_trades.sell,
+			common: pair_trades.common,
+			buy: pair_trades.buy
+		}
+	}
 }
-
-// Buy Limiting
-let sellpair1 = {
-	numerator: "ENJ",
-	denominator: "BTC",
-	bid_price: .00000280,
-	bid_qty: 252180
-}
-
-let commonpair1 = {
-	numerator: "ETH",
-	denominator: "BTC",
-	ask_price: .031690,
-	ask_qty: 3.815
-}
-
-let buypair1 = {
-	numerator: "ENJ",
-	denominator: "ETH",
-	ask_price: .00008472,
-	ask_qty: 4284
-}
-
-//console.log(ArbitrageUtils.find_limiting_pair(sellpair1, commonpair1, buypair1))
-
-// Sell Limiting
-let sellpair2 = {
-	numerator: "ENJ",
-	denominator: "BTC",
-	bid_price: .00000280,
-	bid_qty: 252180
-}
-
-let commonpair2 = {
-	numerator: "ETH",
-	denominator: "BTC",
-	ask_price: .031690,
-	ask_qty: 3.815
-}
-
-let buypair2 = {
-	numerator: "ENJ",
-	denominator: "ETH",
-	ask_price: .00008472,
-	ask_qty: 300000
-}
-
-//console.log(ArbitrageUtils.find_limiting_pair(sellpair2, commonpair2, buypair2))
-//console.log(ArbitrageUtils.gain_percentage(ArbitrageUtils.find_gain(sellpair2, commonpair2, buypair2)))
-
